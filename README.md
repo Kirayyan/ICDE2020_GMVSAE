@@ -196,29 +196,31 @@ python3 scripts/score_pattern_npy.py --datasets porto --patterns _stay_ speed_ac
 
 输出 CSV 示例：`data/porto/scores_init_stay_0p35_25_1.csv`、`scores_init_speed_accelerate4_0p4_1.csv`。
 
-### 只测指定的几个 npy（Chengdu 示例）
+### 只测指定的 stay / speed npy（Porto + Chengdu，不含 detour）
 
-编辑 `configs/cd_selected_anomalies.json`，只保留你要测的 `outliers_data_*.npy` 文件名（脚本会自动配对同名的 `outliers_idx_*.npy`）：
+列表在：
+
+- `configs/porto_selected_anomalies.json`
+- `configs/cd_selected_anomalies.json`
+
+（两边文件名相同，各放在 `data/porto/`、`data/cd/`，且每个 `outliers_data_*` 都要有对应的 `outliers_idx_*`。）
 
 ```bash
 export TF_USE_LEGACY_KERAS=1
 export GPU_ID=0
 
-# 先看会测哪些文件
+python3 scripts/convert_mst_npy_to_gmvsae.py --dataset porto
+python3 scripts/convert_mst_npy_to_gmvsae.py --dataset cd
+
+# 预览（不跑模型）
+python3 scripts/score_selected_npy.py --config configs/porto_selected_anomalies.json --dry_run
 python3 scripts/score_selected_npy.py --config configs/cd_selected_anomalies.json --dry_run
 
-# 训练 + 打分
-sh score_cd_selected.sh
+# Porto + Chengdu 一次跑完（推荐）
+sh score_selected.sh
 ```
 
-命令行临时指定（不用改 json）：
-
-```bash
-python3 scripts/score_selected_npy.py --dataset cd --train_if_missing \
-  --data outliers_data_init_stay_0p3_25_1.npy \
-         outliers_data_init_speed_accelerate3_0p1_1.npy \
-         outliers_data_init_speed_decelerate4_0p1_1.npy
-```
+只跑单个城市：`sh score_porto_selected.sh` 或 `sh score_cd_selected.sh`。
 
 ### 已有异常样本（JSON / 自定义 npy）
 
