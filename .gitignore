@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.ckpt*
+ckpt/
+pretrain/
+data/**/*.csv
+data/**/*.pkl
+data/**/*.npy
+data/**/anomalies_*.json
+data/**/scores_*.csv
+data/anomaly_scores.csv

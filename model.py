@@ -5,10 +5,10 @@ import math
 import time
 import argparse
 import numpy as np
-import tensorflow as tf
+from tf_compat import tf, keras
 
 
-fc = tf.keras.layers.Dense
+fc = keras.layers.Dense
 w_init = tf.random_normal_initializer(stddev=0.02)
 b_init = tf.constant_initializer(0.0)
 
@@ -139,8 +139,10 @@ class Model:
         if args.mode == 'train' or args.mode == 'pretrain':
             res = self.loss(outputs, targets, masks, latent_losses)
             res += [z]
-        elif args.mode == 'eval':
+        elif args.mode in ('eval', 'score'):
             res = self.anomaly_score(outputs, targets, masks)
+        else:
+            raise ValueError("Unsupported mode: {}".format(args.mode))
         return res
 
     def anomaly_score(self, outputs, targets, masks):
