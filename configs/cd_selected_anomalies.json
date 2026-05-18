@@ -1,0 +1,15 @@
+{
+  "dataset": "cd",
+  "data_dir": "data/cd",
+  "eval_split": "val",
+  "jobs": [
+    {"data": "outliers_data_init_stay_0p3_25_1.npy"},
+    {"data": "outliers_data_init_stay_0p3_15_1.npy"},
+    {"data": "outliers_data_init_stay_0p35_15_1.npy"},
+    {"data": "outliers_data_init_speed_accelerate3_0p1_1.npy"},
+    {"data": "outliers_data_init_speed_accelerate1p5_0p2_1.npy"},
+    {"data": "outliers_data_init_speed_decelerate3_0p1_1.npy"},
+    {"data": "outliers_data_init_speed_decelerate4_0p1_1.npy"},
+    {"data": "outliers_data_init_speed_decelerate1p5_0p2_1.npy"}
+  ]
+}

@@ -196,6 +196,30 @@ python3 scripts/score_pattern_npy.py --datasets porto --patterns _stay_ speed_ac
 
 输出 CSV 示例：`data/porto/scores_init_stay_0p35_25_1.csv`、`scores_init_speed_accelerate4_0p4_1.csv`。
 
+### 只测指定的几个 npy（Chengdu 示例）
+
+编辑 `configs/cd_selected_anomalies.json`，只保留你要测的 `outliers_data_*.npy` 文件名（脚本会自动配对同名的 `outliers_idx_*.npy`）：
+
+```bash
+export TF_USE_LEGACY_KERAS=1
+export GPU_ID=0
+
+# 先看会测哪些文件
+python3 scripts/score_selected_npy.py --config configs/cd_selected_anomalies.json --dry_run
+
+# 训练 + 打分
+sh score_cd_selected.sh
+```
+
+命令行临时指定（不用改 json）：
+
+```bash
+python3 scripts/score_selected_npy.py --dataset cd --train_if_missing \
+  --data outliers_data_init_stay_0p3_25_1.npy \
+         outliers_data_init_speed_accelerate3_0p1_1.npy \
+         outliers_data_init_speed_decelerate4_0p1_1.npy
+```
+
 ### 已有异常样本（JSON / 自定义 npy）
 
 把生成好的文件放到对应目录后，**只需训练一次 + 打分**：
