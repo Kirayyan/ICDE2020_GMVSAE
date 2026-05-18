@@ -19,6 +19,70 @@ python run_loop.py --mode=train --cluster_num=5 --num_epochs=5 --gpu_id=0 \
 ```
 More conveniently, we can run pretraining, training and evaluation via <tt>pretrain.sh</tt>, <tt>train.sh</tt> and <tt>eval.sh</tt>, respectively.
 
+### Baseline workflow (train + stay/speed anomaly scores)
+
+This repo implements **GMVSAE** from *Online Anomalous Trajectory Detection with Deep Generative Sequence Modeling* (ICDE 2020).
+
+**1. Environment**
+
+```bash
+pip install -r requirements.txt
+export TF_USE_LEGACY_KERAS=1
+```
+
+**2. Data**
+
+- Real Porto: follow preprocessing above to obtain `data/processed_porto_train.csv` and `data/processed_porto_val.csv`.
+- Smoke test without Kaggle data: `python3 scripts/create_synthetic_porto.py`
+
+**3. Train checkpoints**
+
+```bash
+sh pretrain.sh   # saves ./pretrain/gmvsae_32_256_5/
+sh train.sh      # saves ./ckpt/gmvsae_32_256_5/
+```
+
+**4. Generate stay / speed anomalies**
+
+Built-in generators (repeat grid cell = stay; collapse middle segment = speed):
+
+```bash
+python3 scripts/generate_anomalies.py --split val --ratio 0.05 \
+  --output ./data/anomalies_stay_speed.json
+```
+
+Or provide your own manifest (`records` list):
+
+```json
+{
+  "records": [
+    {"tid": 4, "trajectory": [1, 2, 2, 2, 2, 3], "label": 0, "type": "stay"}
+  ]
+}
+```
+
+- `label`: `0` = anomalous, `1` = normal  
+- `score`: higher = more likely under the model (paper uses sequence likelihood)
+
+**5. Output per-trajectory scores (CSV)**
+
+```bash
+sh score_stay_speed.sh
+# or
+python3 run_loop.py --mode=score --cluster_num=5 --model_dir=./ckpt \
+  --eval_data=val --anomaly_path=./data/anomalies_stay_speed.json \
+  --output_scores=./data/anomaly_scores.csv
+```
+
+Output columns: `tid, label, anomaly_type, score`.
+
+**6. AUC evaluation (paper-style)**
+
+```bash
+OTYPE=stay sh eval.sh
+OTYPE=speed sh eval.sh
+```
+
 #### Parameters:
 | Name                  | Type            | Description   |
 | :-------------        |:-------------   |:------------- |
