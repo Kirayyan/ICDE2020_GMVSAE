@@ -1,4 +1,4 @@
-"""Load user-provided anomaly samples (JSON / pickle / MST-OATD npy)."""
+"""Load user-provided anomaly samples (JSON / pickle / MST-OATD official npy)."""
 import glob
 import json
 import os
@@ -39,16 +39,41 @@ def _records_from_npy_pair(traj_npy, idx_npy, map_size, time_interval, anomaly_t
     return records
 
 
-def find_anomaly_source(data_dir, anomaly_type, split='val'):
-    """Locate user anomaly files under data_dir. Returns (kind, path_or_tuple)."""
+def official_npy_paths(data_dir, distance=2, fraction=0.2, observed_ratio=1.0, month=None):
+    """
+    MST-OATD official filenames from generate_outliers.py, e.g.:
+      outliers_data_init_2_0.2_1.0.npy
+      outliers_idx_init_2_0.2_1.0.npy
+    or evolving:
+      outliers_data_3_2_0.2_1.0.npy  (month=3)
+    """
+    data_dir = os.path.abspath(data_dir)
+    tag = str(month) if month is not None else 'init'
+    candidates = [
+        (
+            os.path.join(data_dir, 'outliers_data_{}_{}_{}_{}.npy'.format(tag, distance, fraction, observed_ratio)),
+            os.path.join(data_dir, 'outliers_idx_{}_{}_{}_{}.npy'.format(tag, distance, fraction, observed_ratio)),
+        ),
+        (
+            os.path.join(data_dir, 'outliers_data_{}_{}_{}.npy'.format(distance, fraction, observed_ratio)),
+            os.path.join(data_dir, 'outliers_idx_{}_{}_{}.npy'.format(distance, fraction, observed_ratio)),
+        ),
+    ]
+    for traj_npy, idx_npy in candidates:
+        if os.path.isfile(traj_npy) and os.path.isfile(idx_npy):
+            return traj_npy, idx_npy
+    return None, None
+
+
+def find_anomaly_source(data_dir, anomaly_type, split='val', distance=2, fraction=0.2, observed_ratio=1.0):
+    """Locate anomaly files. Official MST npy is used when anomaly_type is 'full' or stay/speed not found."""
     data_dir = os.path.abspath(data_dir)
     if not os.path.isdir(data_dir):
         return None
 
     json_names = [
         'anomalies_{}_{}.json'.format(anomaly_type, split),
-        'anomalies_{}.json'.format(anomaly_type),
-        'anomaly_{}_{}.json'.format(anomaly_type, split),
+        'anomalies_{}.json'.format(anomaly_type, split),
     ]
     for name in json_names:
         path = os.path.join(data_dir, name)
@@ -56,26 +81,26 @@ def find_anomaly_source(data_dir, anomaly_type, split='val'):
             return ('json', path)
 
     for path in sorted(glob.glob(os.path.join(data_dir, '*{}*.json'.format(anomaly_type)))):
-        if split in os.path.basename(path) or 'anomal' in os.path.basename(path).lower():
+        if anomaly_type in os.path.basename(path):
             return ('json', path)
 
-  # MST-OATD npy pairs: outliers_data* + outliers_idx* containing anomaly_type
     traj_candidates = sorted(glob.glob(os.path.join(data_dir, 'outliers_data*.npy')))
     for traj_npy in traj_candidates:
         base = os.path.basename(traj_npy)
-        if anomaly_type not in base and 'outliers_data' in base:
-            # generic MST file — only match if no type-specific file exists
-            pass
-        elif anomaly_type not in base:
+        if anomaly_type in ('stay', 'speed') and anomaly_type not in base:
             continue
         idx_npy = traj_npy.replace('outliers_data', 'outliers_idx', 1)
         if os.path.isfile(idx_npy):
             return ('npy', (traj_npy, idx_npy))
 
-    for traj_npy in sorted(glob.glob(os.path.join(data_dir, 'outliers_data*.npy'))):
-        idx_npy = traj_npy.replace('outliers_data', 'outliers_idx', 1)
-        if os.path.isfile(idx_npy) and anomaly_type == 'full':
+    if anomaly_type in ('full', 'mst', 'official'):
+        traj_npy, idx_npy = official_npy_paths(data_dir, distance, fraction, observed_ratio, month=None)
+        if traj_npy:
             return ('npy', (traj_npy, idx_npy))
+        for traj_npy in traj_candidates:
+            idx_npy = traj_npy.replace('outliers_data', 'outliers_idx', 1)
+            if os.path.isfile(idx_npy):
+                return ('npy', (traj_npy, idx_npy))
 
     pkl_path = os.path.join(data_dir, 'anomalies_{}.pkl'.format(anomaly_type))
     if os.path.isfile(pkl_path):

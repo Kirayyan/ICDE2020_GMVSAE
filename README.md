@@ -83,7 +83,56 @@ OTYPE=stay sh eval.sh
 OTYPE=speed sh eval.sh
 ```
 
-### 已有异常样本（直接打分，无需重新生成）
+### 使用 MST-OATD 官方 npy（推荐）
+
+把 MST-OATD 仓库生成的文件拷到本仓库：
+
+```
+data/porto/train_data_init.npy
+data/porto/test_data_init.npy
+data/porto/outliers_data_init_2_0.2_1.0.npy
+data/porto/outliers_idx_init_2_0.2_1.0.npy
+
+data/cd/   （同上）
+```
+
+参数 `2 / 0.2 / 1.0` 对应官方命令里的 `--distance 2 --fraction 0.2 --obeserved_ratio 1.0`。
+
+**一条命令（转 csv + 训练 + 打分）：**
+
+```bash
+pip install -r requirements.txt
+export TF_USE_LEGACY_KERAS=1
+export GPU_ID=0
+
+sh score_official_npy.sh
+```
+
+输出：`data/porto/scores_official_init_2_0.2_1.0.csv`、`data/cd/scores_official_init_2_0.2_1.0.csv`
+
+**分步执行：**
+
+```bash
+python3 scripts/convert_mst_npy_to_gmvsae.py --dataset porto
+python3 scripts/convert_mst_npy_to_gmvsae.py --dataset cd
+
+python3 run_loop.py --mode=pretrain --dataset porto --cluster_num=5 --num_epochs=10 --gpu_id=0
+python3 run_loop.py --mode=train     --dataset porto --cluster_num=5 --num_epochs=10 --gpu_id=0 --pretrain_dir=./pretrain/porto
+python3 run_loop.py --mode=pretrain --dataset cd --cluster_num=5 --num_epochs=10 --gpu_id=0
+python3 run_loop.py --mode=train     --dataset cd --cluster_num=5 --num_epochs=10 --gpu_id=0 --pretrain_dir=./pretrain/cd
+
+python3 run_loop.py --mode=score --dataset porto --cluster_num=5 --eval_data=val \
+  --anomaly_path ./data/porto/outliers_data_init_2_0.2_1.0.npy \
+  --output_scores ./data/porto/scores_official.csv --otype=full --gpu_id=0
+
+python3 run_loop.py --mode=score --dataset cd --cluster_num=5 --eval_data=val \
+  --anomaly_path ./data/cd/outliers_data_init_2_0.2_1.0.npy \
+  --output_scores ./data/cd/scores_official.csv --otype=full --gpu_id=0
+```
+
+说明：官方 npy 是**时空联合异常**（空间扰动 + 时间扰动），打分时会自动取 grid id（`[[grid, time], ...]` → `[grid, ...]`）。
+
+### 已有异常样本（JSON / 自定义 npy）
 
 把生成好的文件放到对应目录后，**只需训练一次 + 打分**：
 

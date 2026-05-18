@@ -134,10 +134,15 @@ class DataGenerator:
                 resolved_from = str(src)
             elif path.endswith('.npy') and 'outliers_data' in os.path.basename(path):
                 idx_path = path.replace('outliers_data', 'outliers_idx', 1)
+                if not os.path.isfile(idx_path):
+                    raise FileNotFoundError(
+                        'MST-OATD idx npy not found: {} (pair of {})'.format(idx_path, path)
+                    )
+                atype = anomaly_type if anomaly_type not in ('unknown', '') else 'full'
                 records = load_anomaly_records(
-                    ('npy', (path, idx_path)), map_size, time_interval, anomaly_type,
+                    ('npy', (path, idx_path)), map_size, time_interval, atype,
                 )
-                resolved_from = path
+                resolved_from = '{} + {}'.format(path, idx_path)
             elif path.endswith('.json'):
                 records = load_anomaly_records(('json', path), map_size, time_interval, anomaly_type)
                 resolved_from = path
