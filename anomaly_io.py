@@ -20,6 +20,7 @@ def normalize_trajectory(traj, map_size, time_interval, anomaly_type):
     if _is_spatiotemporal(traj):
         if anomaly_type == 'stay':
             return grid_only_to_gmvsae_stay(traj, map_size, time_interval)
+        # speed / detour / full: spatial grid sequence
         return traj_to_grid_only(traj)
     return [int(p[0]) if isinstance(p, (list, tuple)) else int(p) for p in traj]
 
@@ -40,9 +41,18 @@ def _records_from_npy_pair(traj_npy, idx_npy, map_size, time_interval, anomaly_t
 
 
 def infer_anomaly_kind_from_filename(filename):
-    """Infer stay/speed from custom MST npy names, e.g. stay_accelerate4, speed_decelerate3."""
+    """
+    Infer grid conversion from npy filename.
+
+    Examples:
+      outliers_data_init_stay_0p35_25_1.npy      -> stay
+      outliers_data_init_speed_accelerate4_...   -> speed
+      outliers_data_init_detour_3_0p1_0p7.npy    -> detour (spatial, same as speed)
+    """
     base = os.path.basename(filename).lower()
-    if 'stay' in base:
+    if 'detour' in base:
+        return 'detour'
+    if 'stay' in base and 'speed' not in base:
         return 'stay'
     if 'speed' in base:
         return 'speed'

@@ -4,8 +4,8 @@ set -euo pipefail
 export TF_USE_LEGACY_KERAS=1
 export GPU_ID="${GPU_ID:-0}"
 
-# Pattern in filename, e.g. stay_accelerate3 / stay_accelerate4
-PATTERN="${PATTERN:-stay_accelerate}"
+# Match stay files like: outliers_data_init_stay_0p35_25_1.npy
+PATTERN="${PATTERN:-_stay_}"
 # Empty = all splits (init, 1..10); or: SPLIT=init  SPLIT=10
 SPLIT="${SPLIT:-}"
 

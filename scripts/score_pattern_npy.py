@@ -20,8 +20,10 @@ from dataset_config import DATASETS
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--datasets', nargs='+', default=['porto', 'cd'])
-    parser.add_argument('--pattern', default='stay_accelerate',
-                        help='substring in outliers_data_*.npy, e.g. stay_accelerate4')
+    parser.add_argument('--pattern', default='_stay_',
+                        help='substring matched in outliers_data_*.npy filename')
+    parser.add_argument('--patterns', nargs='+', default=[],
+                        help='score multiple patterns in one run, e.g. _stay_ speed_accelerate detour')
     parser.add_argument('--split', default='',
                         help='init or 1-10; empty = score all matching files')
     parser.add_argument('--eval_split', default='val', choices=['train', 'val'])
@@ -38,6 +40,7 @@ def main():
     env['CUDA_VISIBLE_DEVICES'] = args.gpu_id
     py = sys.executable
     split_tag = args.split if args.split else None
+    pattern_list = args.patterns if args.patterns else [args.pattern]
 
     for dataset in args.datasets:
         cfg = DATASETS[dataset]
@@ -54,16 +57,6 @@ def main():
             else:
                 raise FileNotFoundError('Missing csv and train/test npy under ' + data_dir)
 
-        pairs = find_npy_pairs(data_dir, args.pattern, split_tag=split_tag)
-        if not pairs:
-            print('No npy pairs for pattern="{}" under {}'.format(args.pattern, data_dir))
-            continue
-
-        if args.list_only:
-            for traj, idx, base in pairs:
-                print(dataset, base)
-            continue
-
         ckpt = os.path.join(cfg['ckpt_root'], 'gmvsae_32_256_5')
         if args.train_if_missing and not os.path.exists(os.path.join(ckpt, 'checkpoint')):
             for mode, extra in [
@@ -76,25 +69,40 @@ def main():
                     '--batch_size', '128', '--gpu_id', args.gpu_id,
                 ] + extra, env=env)
 
-        for traj_npy, idx_npy, base in pairs:
-            otype = infer_anomaly_kind_from_filename(base)
-            out_csv = os.path.join(data_dir, 'scores_' + base.replace('outliers_data_', '').replace('.npy', '.csv'))
-            cmd = [
-                py, os.path.join(root, 'run_loop.py'),
-                '--mode', 'score',
-                '--dataset', dataset,
-                '--cluster_num', str(args.cluster_num),
-                '--eval_data', args.eval_split,
-                '--anomaly_path', traj_npy,
-                '--output_scores', out_csv,
-                '--batch_size', '128',
-                '--gpu_id', args.gpu_id,
-                '--otype', otype,
-            ]
-            print('[{}] {} + {}'.format(dataset, os.path.basename(traj_npy), os.path.basename(idx_npy)))
-            print('>>', ' '.join(cmd))
-            subprocess.check_call(cmd, env=env)
-            print('Done:', out_csv)
+        for pattern in pattern_list:
+            pairs = find_npy_pairs(data_dir, pattern, split_tag=split_tag)
+            if not pairs:
+                print('[{}] no files for pattern="{}"'.format(dataset, pattern))
+                continue
+
+            if args.list_only:
+                for traj, idx, base in pairs:
+                    print(dataset, pattern, base)
+                continue
+
+            for traj_npy, idx_npy, base in pairs:
+                otype = infer_anomaly_kind_from_filename(base)
+                out_csv = os.path.join(
+                    data_dir, 'scores_' + base.replace('outliers_data_', '').replace('.npy', '.csv'),
+                )
+                cmd = [
+                    py, os.path.join(root, 'run_loop.py'),
+                    '--mode', 'score',
+                    '--dataset', dataset,
+                    '--cluster_num', str(args.cluster_num),
+                    '--eval_data', args.eval_split,
+                    '--anomaly_path', traj_npy,
+                    '--output_scores', out_csv,
+                    '--batch_size', '128',
+                    '--gpu_id', args.gpu_id,
+                    '--otype', otype,
+                ]
+                print('[{}][{}] {} + {}'.format(
+                    dataset, pattern, os.path.basename(traj_npy), os.path.basename(idx_npy),
+                ))
+                print('>>', ' '.join(cmd))
+                subprocess.check_call(cmd, env=env)
+                print('Done:', out_csv)
 
 
 if __name__ == '__main__':

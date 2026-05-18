@@ -212,7 +212,9 @@ def run_score(model, args):
     if args.anomaly_path:
         atype = args.otype
         base_lower = os.path.basename(args.anomaly_path).lower()
-        if 'stay' in base_lower:
+        if 'detour' in base_lower:
+            atype = 'detour'
+        elif 'stay' in base_lower and 'speed' not in base_lower:
             atype = 'stay'
         elif 'speed' in base_lower:
             atype = 'speed'

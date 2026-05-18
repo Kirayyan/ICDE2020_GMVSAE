@@ -145,27 +145,56 @@ outliers_data_init_stay_accelerate4_0p1_1.npy
 outliers_idx_init_stay_accelerate4_0p1_1.npy
 ```
 
-**测试 stay 加速度（全部 init + 1..10 批次）：**
+**重要：按「文件名子串」匹配，不会自动测目录里所有 npy。**
+
+| 你的文件示例 | 应用 pattern | 是否默认会测 |
+|-------------|--------------|-------------|
+| `..._stay_0p35_25_1.npy` | `_stay_` | 见下方脚本 |
+| `..._speed_accelerate4_0p4_1.npy` | `speed_accelerate` | 同上 |
+| `..._detour_3_0p1_0p7.npy` | `detour` | **只有显式指定才测** |
+
+stay 与 speed **文件名不同是正常的**，需分两次 pattern（或一条命令多个 pattern）。
+
+**只测 stay + speed（不含 detour）：**
 
 ```bash
 export TF_USE_LEGACY_KERAS=1
 export GPU_ID=0
-sh score_stay_accelerate.sh
+sh score_stay_and_speed.sh
 ```
 
-只测 `init` 或某一档：
+**stay + speed + detour 全部测：**
 
 ```bash
-PATTERN=stay_accelerate4 SPLIT=init sh score_stay_accelerate.sh
+sh score_all_anomaly_types.sh
+# 仅 init 批次：SPLIT=init sh score_all_anomaly_types.sh
 ```
 
-列出将打分的文件（不运行模型）：
+**只测 stay：**
 
 ```bash
-python3 scripts/score_pattern_npy.py --datasets porto --pattern stay_accelerate --list_only
+sh score_stay_accelerate.sh    # 默认 pattern=_stay_
 ```
 
-输出 CSV：`data/porto/scores_init_stay_accelerate4_0p1_1.csv` 等。
+**只测 speed：**
+
+```bash
+PATTERN=speed_accelerate python3 scripts/score_pattern_npy.py --datasets porto --pattern speed_accelerate --train_if_missing
+```
+
+**只测 detour：**
+
+```bash
+python3 scripts/score_pattern_npy.py --datasets porto cd --pattern detour --train_if_missing
+```
+
+列出将匹配的文件（不跑模型）：
+
+```bash
+python3 scripts/score_pattern_npy.py --datasets porto --patterns _stay_ speed_accelerate detour --list_only
+```
+
+输出 CSV 示例：`data/porto/scores_init_stay_0p35_25_1.csv`、`scores_init_speed_accelerate4_0p4_1.csv`。
 
 ### 已有异常样本（JSON / 自定义 npy）
 
