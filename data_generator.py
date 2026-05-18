@@ -100,8 +100,16 @@ class DataGenerator:
         trajectories = self._trajectories(data_type)
         path = manifest_path
         if not os.path.isabs(path) and not os.path.exists(path):
-            alt = os.path.join('./data', os.path.basename(path))
-            path = alt if os.path.exists(alt) else os.path.join('./data', path)
+            candidates = [
+                path,
+                os.path.join('./data', path),
+                os.path.join('./data', os.path.basename(path)),
+            ]
+            mst_dir = getattr(self.args, 'mst_data_dir', None)
+            if mst_dir:
+                candidates.append(os.path.join(mst_dir, os.path.basename(path)))
+                candidates.append(os.path.join(mst_dir, path))
+            path = next((p for p in candidates if os.path.exists(p)), path)
 
         records = []
         if path.endswith('.json'):

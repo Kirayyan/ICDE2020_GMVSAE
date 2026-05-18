@@ -83,6 +83,45 @@ OTYPE=stay sh eval.sh
 OTYPE=speed sh eval.sh
 ```
 
+### MST-OATD-aligned stay / speed anomalies (Porto + Chengdu)
+
+If your anomalies follow [MST-OATD](https://github.com/chwang0721/MST-OATD) (`distance`, `fraction`, `observed_ratio`):
+
+| Type | MST-OATD rule | GMVSAE input |
+|------|----------------|--------------|
+| **stay** | Temporal offset on a segment (grid unchanged) | Grid sequence with duplicated cells from timestamp gaps |
+| **speed** | Spatial offset on a segment (MST `perturb_point`) | Grid IDs after spatial perturbation |
+
+**Two datasets** (map sizes match MST-OATD): `porto` (51×119), `cd` (167×154).
+
+```bash
+# 1) Place MST-OATD npy under data/porto/ and data/cd/ (from their preprocess)
+python3 scripts/convert_mst_npy_to_gmvsae.py --dataset porto
+python3 scripts/convert_mst_npy_to_gmvsae.py --dataset cd
+
+# 2) Generate stay & speed manifests (same params as MST-OATD paper: d=2, α=0.2, ρ=1.0)
+python3 scripts/generate_mst_anomalies.py --dataset porto --anomaly_type both
+python3 scripts/generate_mst_anomalies.py --dataset cd --anomaly_type both
+
+# 3) Train + score both datasets (one command)
+sh run_mst_oatd_baseline.sh
+```
+
+Outputs:
+
+- `data/porto/scores_stay_val.csv`, `data/porto/scores_speed_val.csv`
+- `data/cd/scores_stay_val.csv`, `data/cd/scores_speed_val.csv`
+
+If you already ran official `generate_outliers.py`, import npy then score:
+
+```bash
+python3 scripts/import_mst_oatd_npy.py --dataset porto \
+  --traj_npy ./data/porto/outliers_data_2_0.2_1.0.npy \
+  --idx_npy ./data/porto/outliers_idx_2_0.2_1.0.npy --anomaly_type full
+python3 run_loop.py --mode=score --dataset porto --anomaly_path ./data/porto/anomalies_full_val.json \
+  --output_scores ./data/porto/scores_full_val.csv
+```
+
 #### Parameters:
 | Name                  | Type            | Description   |
 | :-------------        |:-------------   |:------------- |

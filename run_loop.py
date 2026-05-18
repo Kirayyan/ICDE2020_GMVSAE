@@ -7,6 +7,7 @@ from tf_compat import tf
 
 from data_generator import DataGenerator
 from model import Model
+from dataset_config import apply_dataset_args
 from sklearn.cluster import KMeans
 from sklearn.metrics import precision_recall_curve, auc
 
@@ -26,10 +27,12 @@ def define_args():
 
     parser.add_argument('--mode', type=str, default="train",
                         help='pretrain, train, eval, or score')
+    parser.add_argument('--dataset', type=str, default='',
+                        help='porto or cd — sets map_size, data paths, and ckpt dirs (MST-OATD aligned)')
     parser.add_argument('--data_filename', type=str, default="./data/processed_porto.csv",
                         help='processed trajectory file prefix')
-    parser.add_argument('--map_size', type=int, nargs=2, default=[51, 158],
-                        help='grid map height and width')
+    parser.add_argument('--map_size', type=int, nargs=2, default=None,
+                        help='grid map height and width (auto when --dataset is set)')
     parser.add_argument('--model', type=str, default="gmvsae",
                         help='model name tag for checkpoint paths')
     parser.add_argument('--token_dim', type=int, default=32,
@@ -75,7 +78,11 @@ def define_args():
                         help='segment length ratio for speed anomaly injection')
 
     args = parser.parse_args()
-    args.map_size = tuple(args.map_size)
+    if args.map_size is None:
+        args.map_size = (51, 158)
+    else:
+        args.map_size = tuple(args.map_size)
+    args = apply_dataset_args(args)
     return args
 
 
