@@ -210,7 +210,12 @@ def run_score(model, args):
 
     meta_by_tid = {}
     if args.anomaly_path:
-        meta = sampler.load_anomaly_manifest(args.anomaly_path, eval_data)
+        atype = args.otype
+        for name in ('stay', 'speed'):
+            if name in os.path.basename(args.anomaly_path).lower():
+                atype = name
+                break
+        meta = sampler.load_anomaly_manifest(args.anomaly_path, eval_data, anomaly_type=atype)
         meta_by_tid = {m['tid']: m for m in meta}
     else:
         sampler.inject_outliers(

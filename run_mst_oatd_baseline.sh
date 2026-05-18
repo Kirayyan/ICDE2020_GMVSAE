@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # End-to-end: MST-OATD-style stay/speed anomalies on Porto + Chengdu
+# If anomalies are already generated, use: sh score_prebuilt.sh
 set -euo pipefail
 export TF_USE_LEGACY_KERAS=1
 export GPU_ID="${GPU_ID:-0}"
 
-# If you already have MST-OATD npy under data/porto and data/cd, skip this step.
+if [ -f ./data/porto/anomalies_stay_val.json ] && [ -f ./data/cd/anomalies_stay_val.json ]; then
+  echo "Pre-built anomalies found — scoring only."
+  exec bash score_prebuilt.sh "$@"
+fi
+
 if [ ! -f ./data/porto/test_data_init.npy ]; then
   echo "No MST npy found — creating synthetic smoke-test data."
   python3 scripts/create_synthetic_mst_npy.py --datasets porto cd

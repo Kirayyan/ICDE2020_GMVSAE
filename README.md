@@ -83,6 +83,42 @@ OTYPE=stay sh eval.sh
 OTYPE=speed sh eval.sh
 ```
 
+### 已有异常样本（直接打分，无需重新生成）
+
+把生成好的文件放到对应目录后，**只需训练一次 + 打分**：
+
+```bash
+export TF_USE_LEGACY_KERAS=1
+
+# 目录约定（Porto / Chengdu 各一份）
+# data/porto/anomalies_stay_val.json
+# data/porto/anomalies_speed_val.json
+# data/cd/anomalies_stay_val.json
+# data/cd/anomalies_speed_val.json
+
+# 或使用 MST-OATD 官方 npy 对：
+# data/porto/outliers_data_2_0.2_1.0.npy + outliers_idx_2_0.2_1.0.npy
+
+# 1) 若尚未训练 GMVSAE（每个数据集各训一次）
+sh pretrain.sh   # 需先设置 --dataset porto / cd，见下方
+sh train.sh
+
+# 2) 仅对已有异常打分（推荐）
+sh score_prebuilt.sh
+```
+
+也支持 spatiotemporal 格式（`[[grid_id, [h,m,s,y,M,d]], ...]`），加载时会自动转为 grid 序列。
+
+手动指定某个文件：
+
+```bash
+python3 run_loop.py --mode=score --dataset porto \
+  --anomaly_path /path/to/your_stay_anomalies.json \
+  --output_scores ./data/porto/scores_stay_val.csv
+```
+
+JSON 每条记录字段：`tid`（轨迹下标）、`trajectory`（grid id 列表）、`label`（0=异常）、`type`（`stay` / `speed`）。
+
 ### MST-OATD-aligned stay / speed anomalies (Porto + Chengdu)
 
 If your anomalies follow [MST-OATD](https://github.com/chwang0721/MST-OATD) (`distance`, `fraction`, `observed_ratio`):

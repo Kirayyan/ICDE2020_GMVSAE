@@ -5,6 +5,7 @@ import numpy as np
 from collections import defaultdict
 
 from tf_compat import tf
+from anomaly_io import load_anomaly_records, find_anomaly_source
 
 
 class DataGenerator:
@@ -84,50 +85,65 @@ class DataGenerator:
             trajectories[int(idx)] = traj
         self.outlier_idx = [int(i) for i in idx_outliers.keys()]
 
-    def load_anomaly_manifest(self, manifest_path, data_type):
-        """Load user-generated anomalies from JSON or pickle.
-
-        JSON format:
-        {
-          "records": [
-            {"tid": 0, "trajectory": [1,2,3], "label": 0, "type": "stay"},
-            ...
-          ]
-        }
-
-        Pickle format: list of dicts with the same keys, or {tid: trajectory}.
-        """
+    def load_anomaly_manifest(self, manifest_path, data_type, anomaly_type='unknown'):
+        """Load pre-built anomalies from JSON, pickle, npy pair, or auto-discover under mst_data_dir."""
         trajectories = self._trajectories(data_type)
-        path = manifest_path
-        if not os.path.isabs(path) and not os.path.exists(path):
-            candidates = [
-                path,
-                os.path.join('./data', path),
-                os.path.join('./data', os.path.basename(path)),
-            ]
-            mst_dir = getattr(self.args, 'mst_data_dir', None)
-            if mst_dir:
-                candidates.append(os.path.join(mst_dir, os.path.basename(path)))
-                candidates.append(os.path.join(mst_dir, path))
-            path = next((p for p in candidates if os.path.exists(p)), path)
+        map_size = self.map_size
+        time_interval = getattr(self.args, 'time_interval', 15)
 
-        records = []
-        if path.endswith('.json'):
-            with open(path, 'r') as fp:
-                payload = json.load(fp)
-            records = payload.get('records', payload)
+        records = None
+        resolved_from = manifest_path
+
+        if manifest_path in ('', 'auto', 'AUTO'):
+            mst_dir = getattr(self.args, 'mst_data_dir', './data')
+            split = 'val' if data_type == 'val' else 'train'
+            for atype in ('stay', 'speed'):
+                src = find_anomaly_source(mst_dir, atype, split)
+                if src and atype == anomaly_type:
+                    records = load_anomaly_records(src, map_size, time_interval, atype)
+                    resolved_from = str(src)
+                    break
+            if records is None:
+                for atype in ('stay', 'speed'):
+                    src = find_anomaly_source(mst_dir, atype, split)
+                    if src:
+                        records = load_anomaly_records(src, map_size, time_interval, atype)
+                        resolved_from = str(src)
+                        anomaly_type = atype
+                        break
         else:
-            with open(path, 'rb') as fp:
-                payload = pickle.load(fp)
-            if isinstance(payload, dict) and 'records' in payload:
-                records = payload['records']
-            elif isinstance(payload, dict):
-                records = [
-                    {'tid': int(tid), 'trajectory': traj, 'label': 0, 'type': 'unknown'}
-                    for tid, traj in payload.items()
+            path = manifest_path
+            if not os.path.isabs(path) and not os.path.exists(path):
+                candidates = [
+                    path,
+                    os.path.join('./data', path),
+                    os.path.join('./data', os.path.basename(path)),
                 ]
+                mst_dir = getattr(self.args, 'mst_data_dir', None)
+                if mst_dir:
+                    candidates.append(os.path.join(mst_dir, os.path.basename(path)))
+                    candidates.append(os.path.join(mst_dir, path))
+                path = next((p for p in candidates if os.path.exists(p)), path)
+
+            if os.path.isdir(path):
+                split = 'val' if data_type == 'val' else 'train'
+                src = find_anomaly_source(path, anomaly_type, split)
+                if not src:
+                    raise FileNotFoundError('No anomaly files found under {}'.format(path))
+                records = load_anomaly_records(src, map_size, time_interval, anomaly_type)
+                resolved_from = str(src)
+            elif path.endswith('.npy') and 'outliers_data' in os.path.basename(path):
+                idx_path = path.replace('outliers_data', 'outliers_idx', 1)
+                records = load_anomaly_records(
+                    ('npy', (path, idx_path)), map_size, time_interval, anomaly_type,
+                )
+                resolved_from = path
+            elif path.endswith('.json'):
+                records = load_anomaly_records(('json', path), map_size, time_interval, anomaly_type)
+                resolved_from = path
             else:
-                records = payload
+                records = load_anomaly_records(('pkl', path), map_size, time_interval, anomaly_type)
+                resolved_from = path
 
         meta = []
         for rec in records:
@@ -136,12 +152,12 @@ class DataGenerator:
             meta.append({
                 'tid': tid,
                 'label': int(rec.get('label', 0)),
-                'type': rec.get('type', rec.get('anomaly_type', 'unknown')),
+                'type': rec.get('type', rec.get('anomaly_type', anomaly_type)),
             })
             self.outlier_idx.append(tid)
 
         self.anomaly_meta = meta
-        print("Loaded {} anomalous trajectories from {}.".format(len(meta), path))
+        print("Loaded {} anomalous trajectories from {}.".format(len(meta), resolved_from))
         return meta
 
     def pad_and_mask(self, batch_x):
