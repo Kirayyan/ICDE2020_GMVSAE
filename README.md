@@ -27,8 +27,12 @@ This repo implements **GMVSAE** from *Online Anomalous Trajectory Detection with
 
 ```bash
 pip install -r requirements.txt
+# 若出现 protobuf / tensorboard 冲突，执行：
+# bash scripts/fix_deps.sh
 export TF_USE_LEGACY_KERAS=1
 ```
+
+依赖建议固定为 **TensorFlow 2.17.1 + protobuf&lt;5**（不要用 `pip install tensorflow` 装到 2.21，会拉高 protobuf 导致与 tensorboard 冲突）。
 
 **2. Data**
 
