@@ -132,6 +132,37 @@ python3 run_loop.py --mode=score --dataset cd --cluster_num=5 --eval_data=val \
 
 说明：官方 npy 是**时空联合异常**（空间扰动 + 时间扰动），打分时会自动取 grid id（`[[grid, time], ...]` → `[grid, ...]`）。
 
+### 自定义 npy 命名（stay 加速度 / speed 减速度等）
+
+若文件名为：
+
+```
+outliers_data_init_stay_accelerate4_0p1_1.npy
+outliers_idx_init_stay_accelerate4_0p1_1.npy
+```
+
+**测试 stay 加速度（全部 init + 1..10 批次）：**
+
+```bash
+export TF_USE_LEGACY_KERAS=1
+export GPU_ID=0
+sh score_stay_accelerate.sh
+```
+
+只测 `init` 或某一档：
+
+```bash
+PATTERN=stay_accelerate4 SPLIT=init sh score_stay_accelerate.sh
+```
+
+列出将打分的文件（不运行模型）：
+
+```bash
+python3 scripts/score_pattern_npy.py --datasets porto --pattern stay_accelerate --list_only
+```
+
+输出 CSV：`data/porto/scores_init_stay_accelerate4_0p1_1.csv` 等。
+
 ### 已有异常样本（JSON / 自定义 npy）
 
 把生成好的文件放到对应目录后，**只需训练一次 + 打分**：

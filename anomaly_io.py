@@ -39,6 +39,47 @@ def _records_from_npy_pair(traj_npy, idx_npy, map_size, time_interval, anomaly_t
     return records
 
 
+def infer_anomaly_kind_from_filename(filename):
+    """Infer stay/speed from custom MST npy names, e.g. stay_accelerate4, speed_decelerate3."""
+    base = os.path.basename(filename).lower()
+    if 'stay' in base:
+        return 'stay'
+    if 'speed' in base:
+        return 'speed'
+    return 'full'
+
+
+def find_npy_pairs(data_dir, name_pattern, split_tag=None):
+    """
+    Find outliers_data / outliers_idx pairs by filename substring.
+
+    Examples (Porto):
+      outliers_data_init_stay_accelerate4_0p1_1.npy
+      outliers_data_10_stay_accelerate3_0p1_1.npy
+      outliers_data_init_speed_decelerate4_0p1_1.npy
+
+    name_pattern: e.g. 'stay_accelerate4' or 'stay_accelerate' (prefix match via substring)
+    split_tag: 'init', '1'..'10', or None for all splits
+    """
+    data_dir = os.path.abspath(data_dir)
+    pairs = []
+    for traj_npy in sorted(glob.glob(os.path.join(data_dir, 'outliers_data*.npy'))):
+        base = os.path.basename(traj_npy)
+        if name_pattern and name_pattern not in base:
+            continue
+        if split_tag is not None:
+            st = str(split_tag)
+            if st == 'init':
+                if '_init_' not in base and not base.startswith('outliers_data_init_'):
+                    continue
+            elif '_{}_'.format(st) not in base:
+                continue
+        idx_npy = traj_npy.replace('outliers_data', 'outliers_idx', 1)
+        if os.path.isfile(idx_npy):
+            pairs.append((traj_npy, idx_npy, base))
+    return pairs
+
+
 def official_npy_paths(data_dir, distance=2, fraction=0.2, observed_ratio=1.0, month=None):
     """
     MST-OATD official filenames from generate_outliers.py, e.g.:
@@ -65,11 +106,18 @@ def official_npy_paths(data_dir, distance=2, fraction=0.2, observed_ratio=1.0, m
     return None, None
 
 
-def find_anomaly_source(data_dir, anomaly_type, split='val', distance=2, fraction=0.2, observed_ratio=1.0):
-    """Locate anomaly files. Official MST npy is used when anomaly_type is 'full' or stay/speed not found."""
+def find_anomaly_source(data_dir, anomaly_type, split='val', distance=2, fraction=0.2,
+                        observed_ratio=1.0, name_pattern='', split_tag=None):
+    """Locate anomaly files (json / custom npy / official npy)."""
     data_dir = os.path.abspath(data_dir)
     if not os.path.isdir(data_dir):
         return None
+
+    if name_pattern:
+        pairs = find_npy_pairs(data_dir, name_pattern, split_tag=split_tag)
+        if pairs:
+            traj_npy, idx_npy, _ = pairs[0]
+            return ('npy', (traj_npy, idx_npy))
 
     json_names = [
         'anomalies_{}_{}.json'.format(anomaly_type, split),

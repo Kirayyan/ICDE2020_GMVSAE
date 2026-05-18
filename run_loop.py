@@ -211,10 +211,11 @@ def run_score(model, args):
     meta_by_tid = {}
     if args.anomaly_path:
         atype = args.otype
-        for name in ('stay', 'speed'):
-            if name in os.path.basename(args.anomaly_path).lower():
-                atype = name
-                break
+        base_lower = os.path.basename(args.anomaly_path).lower()
+        if 'stay' in base_lower:
+            atype = 'stay'
+        elif 'speed' in base_lower:
+            atype = 'speed'
         meta = sampler.load_anomaly_manifest(args.anomaly_path, eval_data, anomaly_type=atype)
         meta_by_tid = {m['tid']: m for m in meta}
     else:
